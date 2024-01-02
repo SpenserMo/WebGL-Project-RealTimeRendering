@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>SpenserMo&lowbar;Lab5</title>
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" />
+    <script type="text/javascript" src="glMatrix-0.9.5.min.js"></script>
+
+    <!--  ************** Vertex Shader ************* -->
+    <script id="vshader" type="vertex">
+      precision mediump float;
+      precision mediump int;
+
+      attribute vec3 vertexPosition;
+      attribute vec3 vertexNormal;
+      attribute vec3 vertexColor;
+      attribute vec2 vertexTexCoords;
+
+      uniform mat4 mMatrix;
+      uniform mat4 vMatrix;
+      uniform mat4 pMatrix;
+      uniform mat4 nMatrix;
+      uniform mat4 v2wMatrix;
+
+      uniform vec4 light_pos;
+      uniform vec4 ambient_coef;
+      uniform vec4 diffuse_coef;
+      uniform vec4 specular_coef;
+      uniform float mat_shininess;
+
+      uniform vec4 light_ambient;
+      uniform vec4 light_diffuse;
+      uniform vec4 light_specular;
+
+      uniform int use_texture;
+      uniform sampler2D myTexture;
+
+      varying vec4 eye_pos;
+      varying vec3 v_normal;
+      varying vec4 vColor;
+      varying vec4 vTextureCoord;
+
+      void main(void) {
+        eye_pos = vMatrix*mMatrix*vec4(vertexPosition, 1.0);
+
+        v_normal =normalize(vec3(nMatrix*vec4(vertexNormal,0.0)));
+
+        vTextureCoord = vec4(vertexTexCoords.st, 0.0, 1.0);
+
+        gl_Position = pMatrix*vMatrix*mMatrix*vec4(vertexPosition, 1.0);
+
+        //      vColor = ambient+diffuse+specular;
+        //      vColor = vec4(eye_vector, 1.0);
+              vColor = vec4(vertexColor,1.0);
+        //      vColor = vec4(vertexNormal, 1.0);
+        //      vColor = vec4(v_normal, 1.0);
+
+      }
+    </script>
+
+    <!--  ************** Fragment Shader ************* -->
+    <script id="fshader" type="fragment">
+      precision mediump float;
+      precision mediump int;
+
+      uniform mat4 mMatrix;
+      uniform mat4 vMatrix;
+      uniform mat4 pMatrix;
+      uniform mat4 nMatrix;
+      uniform mat4 v2wMatrix;
+
+      uniform vec4 light_pos;
+      uniform vec4 ambient_coef;
+      uniform vec4 diffuse_coef;
+      uniform vec4 specular_coef;
+      uniform float mat_shininess;
+
+      uniform vec4 light_ambient;
+      uniform vec4 light_diffuse;
+      uniform vec4 light_specular;
+
+      uniform int use_texture;
+      uniform sampler2D myTexture;
+      uniform samplerCube cubeMap;
+      uniform int is_wall;
+
+      varying vec4 eye_pos;
+      varying vec3 v_normal;
+      varying vec4 vColor;
+      varying vec4 vTextureCoord;
+
+      void main(void) {
+        vec4 texcolor;
+        vec3 view_vector, ref;
+        vec4 env_color = vec4(1,0,0,1);
+
+        vec4 light_pos_in_eye = light_pos;
+
+        vec3 light_vector = normalize(vec3(light_pos_in_eye - eye_pos));
+
+        vec3 eye_vector = normalize(-vec3(eye_pos));
+
+        vec4 ambient = ambient_coef * light_ambient;
+        float ndotl = max(dot(v_normal, light_vector), 0.0);
+
+        vec4 diffuse = diffuse_coef * light_diffuse* ndotl;
+
+        vec3 R = normalize(2.0 * ndotl *v_normal-eye_vector);
+        float rdotv = max(dot(R, eye_vector), 0.0);
+
+        vec4 specular;
+        if (ndotl>0.0)
+        specular = specular_coef* light_specular*pow(rdotv, mat_shininess);
+        else
+        specular = vec4(0,0,0,1);
+
+        if (use_texture == 2) {
+          vec4 texColor = texture2D(myTexture, vTextureCoord.st);
+          if (is_wall == 1) {
+            gl_FragColor = texColor;
+          } else if (is_wall == 0) {
+            gl_FragColor = texColor + ambient + diffuse + specular;
+          }
+        }
+        else if (use_texture == 1){
+          view_vector = normalize(vec3(vec4(0,0,0,1)-eye_pos));
+          ref = normalize(reflect(-view_vector, v_normal));
+          ref = normalize(vec3(v2wMatrix*vec4(ref,1)));
+          //gl_FragColor = vec4(ref, 1);
+          env_color = textureCube(cubeMap, ref);
+          gl_FragColor = env_color;
+
+        }
+        else gl_FragColor = ambient + diffuse + specular + vColor;
+
+        // gl_FragColor = ambient + diffuse + specular + vColor;
+        // gl_FragColor = vColor;
+        // gl_FragColor = diffuse;
+        // gl_FragColor = ambient;
+        // gl_FragColor = specular;
+      }
+    </script>
+
+    <script type="text/javascript" src="shaders_setup.js"></script>
+    <script type="text/javascript" src="lab5.js"></script>
+  </head>
+
+  <body onload="webGLStart();">
+    <br />
+    <canvas id="canvas" width="700" height="700"></canvas>
+    <br />
+  </body>
+</html>
